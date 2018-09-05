@@ -2,15 +2,28 @@ package controller;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.transform.Result;
+import javax.xml.transform.Source;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.sax.SAXResult;
+import javax.xml.transform.stream.StreamSource;
 
+import org.apache.fop.apps.FOUserAgent;
+import org.apache.fop.apps.Fop;
+import org.apache.fop.apps.FopFactory;
+import org.apache.fop.apps.FopFactoryBuilder;
+import org.apache.fop.apps.MimeConstants;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -39,6 +52,11 @@ public class ReportController extends HttpServlet {
 			rd.forward(request, response);
 		} else if (methodName.equalsIgnoreCase("getReport")) {
 			getReport(request, response);
+		} else if (methodName.equalsIgnoreCase("fopPDF")) {
+			FileOutputStream file = fopPdf(request, response);
+			request.setAttribute("outputFile", file);
+			RequestDispatcher rd = request.getRequestDispatcher(file);
+			rd.forward(request, response);
 		} else {
 			//writePdf(request, response);
 			//downloadPdf (request, response);
@@ -59,6 +77,40 @@ public class ReportController extends HttpServlet {
 			rd.forward(request, response);
 	}
 
+	private FileOutputStream fopPdf(HttpServletRequest request, HttpServletResponse response) 
+			throws ServletException, IOException {
+
+		System.out.println("I'm in fopPdf");
+        FileOutputStream outputStream = new FileOutputStream("H:\\git\\pdfTests\\TestWeb\\WebContent\\pdf\\test.pdf");
+        File templateFile = new File("H:\\git\\pdfTests\\TestWeb\\WebContent\\pdf\\xhtml-to-xslfo.xsl");
+        File sourceFile = new File("H:\\git\\pdfTests\\TestWeb\\WebContent\\pdf\\test.html");
+
+        final Source xmlSource = new StreamSource(sourceFile);
+        final Source sourceTemplate = new StreamSource(templateFile);
+
+		try {
+			// version 2.1 of getting factory
+	        FopFactoryBuilder builder = new FopFactoryBuilder(new URI("http://google.com"));
+	        builder.setSourceResolution(96);
+	        FopFactory fopFactory = builder.build();
+		
+	        final FOUserAgent foUserAgent = fopFactory.newFOUserAgent();
+	        Fop fop = fopFactory.newFop(MimeConstants.MIME_PDF, foUserAgent, outputStream);
+
+            final TransformerFactory factory = TransformerFactory.newInstance();
+            Transformer transformer = factory.newTransformer(sourceTemplate);
+
+            final Result result = new SAXResult(fop.getDefaultHandler());
+            transformer.transform(xmlSource, result);
+            outputStream.flush();
+            outputStream.close();
+            return outputStream;
+            
+        } catch (final Exception exp) {
+            throw new RuntimeException("Error creating PDF", exp);
+        }
+	}
+	
 	private void downloadPdf(HttpServletRequest request, HttpServletResponse response) 
 		throws ServletException, IOException {
 
